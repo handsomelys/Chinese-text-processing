@@ -1,3 +1,5 @@
+#这个版本是调用库函数，效果不是很好，弃用
+
 from departing_and_reducing_stopwords import Departing_word as dwd
 from sklearn.feature_extraction.text import TfidfTransformer,TfidfVectorizer,CountVectorizer
 from sklearn import feature_extraction
