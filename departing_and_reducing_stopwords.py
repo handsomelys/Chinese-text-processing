@@ -19,7 +19,7 @@ class Departing_word:
         #return stopwords
 
     def seg_depart(self,sentence):
-        #print("departing...")
+        #分词
         sentense_depart = jieba.cut(sentence.strip())
 
         stopwords = self.stopwordslist()
@@ -42,22 +42,16 @@ class Departing_word:
             line_seg = self.seg_depart(line)
             outputs.write(line_seg + '\n')
             words_raw.append(line_seg)
-            #print('-----------departing and reducing stopwords')
+            #将分词好的文本放到words_raw中
         outputs.close()
         inputs.close()
-        #print("done")
+        
         words_raw1 = [i for i in words_raw if i != '']
-
+        #去除空元素
         for i in words_raw1:
             self.words.extend(i.split())
-        #print(keywords)
+        
         #至此 words中存放分词后的文本
     def get_words(self):
         return self.words
 
-'''
-departing_word = Departing_word('stopwords.txt','verse.txt','out.txt')
-departing_word.departing()
-words = departing_word.get_words()
-print(words)
-'''
