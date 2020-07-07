@@ -43,11 +43,12 @@ class TFIDF:
 
     def wordInFileCount(self,word,word_list):   #统计文档频率
         file_cnt = 0
-        for i in word_list:
-            for j in i:
-                if word == j:
-                    self.file_cnt = self.file_cnt + 1
-                else:
+        for line in word_list:
+            word_temp = []
+            word_temp.extend(line.split())
+            for words in word_temp:
+                if word == words:
+                    file_cnt = file_cnt + 1
                     continue
         return file_cnt
 
@@ -58,7 +59,7 @@ class TFIDF:
         temp_file_cnt = len(dataSet)    #获得总的词量
         
         file_output = open(outputFile,'w')  #将得到的词向量写进文件
-        print(dataSet)
+        #print(dataSet)
         for line in dataSet:    #每一行文本统计
             words_bag = self.bwb.bagofWords2Vec(self.vocabList,line)
             line_words_cnt = line.count(' ')    #通过计算一行文本里的空格 得到这个文本的词数
@@ -132,18 +133,14 @@ def main():
     vocabList.sort()
     #print(words_raw1)
     #进行第一次粗选 去除DF<0.042%&&DF>0.15的特征词
-    '''
-    f = open('reduce_txt.txt',encoding='utf-8')
-    for line in f.readlines():
-        with open('reduce_word_txt.txt','w',encoding='utf-8') as m:
-            m.write(' '.join(line.split()).join('\r\n'))
-    '''
+    #除去文本中多余的空格 方便用空格计算每行的词汇数
     inputt = open('reduce_txt.txt','r',encoding='utf-8')
     outputt = open('reduce_word_txt.txt','w',encoding='utf-8')
     for line in inputt:
         outputt.write(''.join(line.split()).join('\r\n'))
     inputt.close()
     outputt.close()
+    #准备得到TF-IDF词向量
     reduce_txt(vocabList,words)
     reduce_data_raw = Dw('stopwords.txt','reduce_word_txt.txt','output_reduce.txt')
     reduce_data_raw.departing()
@@ -162,7 +159,7 @@ def main():
     tfidf_model = TFIDF(reduce_vocabList)
     tfidf_model.getTF_IDF(reduce_data_raw1,'TF-IDF.txt')    #计算得到各个特征词的TF_IDF
     tfidf_list = np.loadtxt('TF-IDF.txt')
-   # print(tfidf_list)
+    print(tfidf_list)
 
 if __name__ == '__main__':
     main()
