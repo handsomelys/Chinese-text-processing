@@ -58,6 +58,7 @@ class TFIDF:
         temp_file_cnt = len(dataSet)    #获得总的词量
         
         file_output = open(outputFile,'w')  #将得到的词向量写进文件
+        print(dataSet)
         for line in dataSet:    #每一行文本统计
             words_bag = self.bwb.bagofWords2Vec(self.vocabList,line)
             line_words_cnt = line.count(' ')    #通过计算一行文本里的空格 得到这个文本的词数
@@ -89,13 +90,14 @@ def reduce_raw(vocabList,dataSet):  #获得一个键值对为 键：词，值：
         word_temp.extend(line.split())
         for word in word_temp:
             dict_for_words[word] = dict_for_words[word] + 1 #统计
+            continue
     return dict_for_words
 
-def reduce_word_(vocabList,words):  #去除TF<0.042%&&TF>0.15的特征词
+def reduce_word_(vocabList,words):  #去除DF<0.042%&&DF>0.15的特征词
     reduce_word = vocabList
     dict_for_words = reduce_raw(reduce_word,words)
     reduce_name = []
-    for key in dict_for_words:  #dict_for_words[key]为TF
+    for key in dict_for_words:  #dict_for_words[key]为DF
         if dict_for_words[key] < float(0.00042*len(words)) or dict_for_words[key] > float(0.15*len(words)):
             reduce_name.append(key)    
     reduce_name = list(set(reduce_name))
@@ -128,10 +130,22 @@ def main():
     dataSet = set(words)
     vocabList = build_word_bag.createVocabList(dataSet)
     vocabList.sort()
-
-    #进行第一次粗选 去除TF<0.042%&&TF>0.15的特征词
+    #print(words_raw1)
+    #进行第一次粗选 去除DF<0.042%&&DF>0.15的特征词
+    '''
+    f = open('reduce_txt.txt',encoding='utf-8')
+    for line in f.readlines():
+        with open('reduce_word_txt.txt','w',encoding='utf-8') as m:
+            m.write(' '.join(line.split()).join('\r\n'))
+    '''
+    inputt = open('reduce_txt.txt','r',encoding='utf-8')
+    outputt = open('reduce_word_txt.txt','w',encoding='utf-8')
+    for line in inputt:
+        outputt.write(''.join(line.split()).join('\r\n'))
+    inputt.close()
+    outputt.close()
     reduce_txt(vocabList,words)
-    reduce_data_raw = Dw('stopwords.txt','reduce_txt.txt','output_reduce.txt')
+    reduce_data_raw = Dw('stopwords.txt','reduce_word_txt.txt','output_reduce.txt')
     reduce_data_raw.departing()
     reduce_data_raw1 = reduce_data_raw.get_words()
     reduce_word = []
