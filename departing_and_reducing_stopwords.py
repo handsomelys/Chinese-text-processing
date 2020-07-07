@@ -48,9 +48,11 @@ class Departing_word:
         
         words_raw1 = [i for i in words_raw if i != '']
         #去除空元素
+        '''
         for i in words_raw1:
             self.words.extend(i.split())
-        
+            '''
+        self.words = words_raw1
         #至此 words中存放分词后的文本
     def get_words(self):
         return self.words
