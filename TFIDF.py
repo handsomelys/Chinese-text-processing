@@ -5,9 +5,9 @@ import numpy as np
 from pprint import  pprint
 
 
-np.set_printoptions(threshold=np.inf)
+#np.set_printoptions(threshold=np.inf)
 
-word_raw = dwd('stopwords.txt', 'verse.txt', 'out.txt')  # 测试文本
+word_raw = dwd('stopwords.txt', 'verse3.txt', 'out.txt')  # 测试文本
 word_raw.departing()
 words = word_raw.get_words()
 
@@ -23,15 +23,24 @@ corpus = corpus_raw.get_words()
 string = " ".join(corpus)
 corpus_text = []
 corpus_text.append(string)
+
 # 构建tfidf模型
-tfidf_vec = TfidfVectorizer(token_pattern=r"(?u)\b\w\w+\b")
-tfidf_model = tfidf_vec.fit(corpus_text)
-tfidf_matrix = tfidf_model.fit_transform(words_text)
 
+tfidf_vec = TfidfVectorizer(token_pattern=r"(?u)\b\w\w+\b",max_df=0.8,min_df=0.002)
 
+#tfidf_model = tfidf_vec.fit(corpus)
+words_text.extend(corpus_text)
+#print(words_text)
+tfidf_matrix = tfidf_vec.fit_transform(words_text)
+'''
+for i in tfidf_matrix.toarray():
+    print(i)
+print(tfidf_matrix.toarray())
+'''
 # print(tfidf_vec.get_feature_names())
 # 词表
-wordlist = tfidf_model.get_feature_names()
+wordlist = tfidf_vec.get_feature_names()
+print(wordlist)
 #print(len(wordlist))
 # 权值表
 weightlist = tfidf_matrix.toarray()
@@ -51,18 +60,25 @@ dict_final = {}
 # count2=0
 for i in range(len(weightlist)):
     for j in range(len(wordlist)):
+        '''
         try:
             dict_final[wordlist[j]]+=weightlist[i][j]
         except:
+            print(wordlist[j])
             # count2+=1
             dict_final[wordlist[j]]=0
             dict_final[wordlist[j]] += weightlist[i][j]
+        '''
+        #print('?')
+        dict_final[wordlist[j]] = weightlist[i][j]
+
 dict_final_sort = sorted(dict_final.items(), key=lambda x: x[1], reverse=True)
+#print(dict(dict_final_sort))
 with open("main_txt.txt",'w')as f:
     for i in list(dict_final_sort):
         every=str(i)
         # print(every)
         f.write(every+'\n')
 # print(count2)
-pprint(dict_final_sort[:10])
+#pprint(dict_final_sort[:10])
 #print(words)
