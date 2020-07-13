@@ -119,6 +119,15 @@ class GSBPSO:
                     part.setPos(i,1)
                 else:
                     part.setPos(i,0)
+        value = fit_fun(part.getPos())
+        if value < part.getFitness_value():
+            part.setFitness_value(value)
+            for i in range(self.dim):
+                part.setBest_pos(i,part.getPos()[i])
+        if value <self.getBest_fitness_value():
+            self.setBest_fitness_value(value)
+            for i in range(self.dim):
+                self.setBest_position(i,part.getPos()[i])
     
     def update_pos_part(self,part):
         for i in range(self,dim):
@@ -133,6 +142,21 @@ class GSBPSO:
                 else:
                     pos_value = part.getPos()[i]
             part.setPos(i,pos_value)
+
+    def update(self):
+        for i in range(self.iter_num):
+            if i < self.gama * self.iter_num:
+                for part in self.patical_list:
+                    self.update_vel(part)
+                    self.update_pos_global(part)
+                self.fitness_val_list.append(self.getBest_fitness_value())
+            else:
+                for part in self.patical_list:
+                    self.update_vel(part)
+                    self.update_pos_part(part)
+                self.fitness_val_list.append(self.getBest_fitness_value())
+        return self.fitness_val_list, self.getBest_position()
+    
 
     def s_function_global(self,part,i):
         return 1/(1+pow(e,-(part.getVel()[i])))
