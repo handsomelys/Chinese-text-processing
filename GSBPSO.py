@@ -2,23 +2,40 @@ import numpy as np
 import random
 from math import e
 #计算余弦相似度
-def cosine_similarity(x,y):
-    num = x.dot(y.T)
-    denom = np.linalg.norm(x) * np.linalg.norm(y)   #计算范数
-    return num / denom
+# 适应值函数未编写完成
+# 更新粒子的位置和速度未完成
+def cosine_similarity(vec1,vec2):
+    dist = float(np.dot(vec1,vec2)/(np.linalg.norm(vec1)*np.linalg.norm(vec2)))
+    return dist
 
-def get_cosine_sim(A,B):
-    num = float(dot(mat(A), mat(B).T))
-    denum = linalg.norm(A) * linalg.norm(B)
-    if denum == 0:
-        denum = 1
-    cosn = num / denum
-    sim = 0.5 + 0.5 * cosn  # 余弦值为[-1,1],归一化为[0,1],值越大相似度越大
-    sim = 1 - sim  # 将其转化为值越小距离越近
-    return sim
+def getRandom(size):
+    m_max,m_min = 0
+    while true:
+        m_1 = random.uniform(1,size)
+        m_2 = random.uniform(1,size)
+        if m_1 != m_2:
+            break
+    if m_1 > m_2:
+        m_max = m_1
+        m_min = m_2
+    else:
+        m_max = m_2
+        m_min = m_1
+    return m_max,m_min
+    
+def fit_fun(particles):
+    m = []   #随机取 ？m<=size
+    size = particles.getSize()
+    m_max,m_min = getRandom(size)
+    for i in range(m_min,m_max):
+        m.append(int(i))
+    fit_value = 0
+    for i in m:
+        for j in size:
+            dist = cosine_similarity(particles.getPatical_list()[i].getPos(),particles.getPatical_list()[j].getPos())
+            fit_value = fit_value + dist
+    return fit_value
 
-def fit_fun(x):
-    pass
 
 class Particle:
     def __init__(self,x_max,max_vel,dim):
@@ -26,7 +43,7 @@ class Particle:
         self._pos = [random.uniform(-x_max,x_max) for i in range(dim)]
         self._vel = [random.uniform(-max_vel,max_vel) for i in range(dim)]
         self._best_pos = [0.0 for i in range(dim)]
-        self._fitness_value = fit_fun(self._pos)
+        #self._fitness_value = fit_fun(self._pos)
     
     def setPos(self,i,value):
         self._pos[i] = value
@@ -53,7 +70,7 @@ class Particle:
         return self._fitness_value
     
 class GSBPSO:
-    def __init__(self,dim,size,iter_num,x_max,max_vel,theta,gama,best_fitness_value=float('Inf'),c1=2,c2=2,w=1):
+    def __init__(self,dim,size,iter_num,x_max,max_vel,theta,gama,best_fitness_value=float('-Inf'),c1=2,c2=2,w=1):
         super().__init__()
         self.c1 = c1
         self.c2 = c2
@@ -71,6 +88,12 @@ class GSBPSO:
 
         #初始化种群
         self.patical_list = [Particle(self.x_max,self.max_vel,self.dim) for i in range(self.size)]
+
+    def getSize(self):
+        return self.size
+
+    def getPatical_list(self):
+        return self.patical_list
 
     def setBest_fitness_value(self,value):
         self.best_fitness_value = value
@@ -119,7 +142,7 @@ class GSBPSO:
                     part.setPos(i,1)
                 else:
                     part.setPos(i,0)
-        value = fit_fun(part.getPos())
+        value = fit_fun(self)
         if value < part.getFitness_value():
             part.setFitness_value(value)
             for i in range(self.dim):
