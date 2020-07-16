@@ -170,7 +170,15 @@ class GSBPSO:
             #print(part.getBest_pos())
             #print(self.getBest_position())
             #print(part.getPos())
-            vel_value = self.w * part.getVel()[i] + self.c1 * random.random() * (part.getBest_pos()[i] - part.getPos()[i]) + self.c2 * random.random() * (self.getBest_position()[i] - part.getPos()[i])
+            vel_value = self.w*part.getVel()[i]+self.c1*random.random()*(part.getBest_pos()[i]-part.getPos()[i])+self.c2*random.random()*(self.getBest_position()[i]-part.getPos()[i])
+            #vel_value = self.c1 * random.random() * 1  + self.c2 * random.random() * (self.getBest_position()[i])
+            #vel_part1 = self.w * part.getVel()[i]
+            #vel_part2_temp = (part.getBest_pos()[i] - part.getPos()[i])
+            #vel_part2 = self.c1*random.random()*vel_part2_temp
+            #vel_part3_temp = self.getBest_position()[i]-part.getPos()[i]
+
+            #print(vel_part3_temp)
+            #vel_value = 1
             if vel_value > self.max_vel:
                 vel_value = self.max_vel
             elif vel_value < -self.max_vel:
@@ -192,14 +200,14 @@ class GSBPSO:
                     part.setPos(i,0)
 
     def update_pos_part(self,part):
-        for i in range(self,dim):
+        for i in range(self.dim):
             if part.getVel()[i] < 0:
-                if random.random() <= s_function_part(part,i):
+                if random.random() <= self.s_function_part(part,i):
                     pos_value = 0
                 else:
                     pos_value = part.getPos()[i]
             else:
-                if random.random() <= s_function_part(part,i):
+                if random.random() <= self.s_function_part(part,i):
                     pos_value = 1
                 else:
                     pos_value = part.getPos()[i]
@@ -220,7 +228,8 @@ class GSBPSO:
             update_fitvalue = fit_fun(self,5)
             if update_fitvalue[0][1] > self.best_fitness_value:
                 self.best_fitness_value = update_fitvalue[0][1]
-                self.best_position = self.getPatical_list()[update_fitvalue[0][0]]
+                #print(self.getPatical_list()[update_fitvalue[0][0]])
+                self.best_position = self.getPatical_list()[update_fitvalue[0][0]].getPos()
                 self.fitness_val_list.append(self.best_fitness_value)
 
         return self.fitness_val_list, self.getBest_position()
@@ -261,6 +270,12 @@ if __name__ == "__main__":
     fitness_value_list,best_position = gsbpso.update()
     print(best_position)
     print(fitness_value_list[-1])
-   
-    
+    selected_feature = []
+    for i in range(len(best_position)):
+        if best_position[i] == 1:
+            selected_feature.append(i)
+    print(selected_feature)
+        
+    for i in selected_feature:
+        print(feature_name[i])
     
