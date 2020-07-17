@@ -7,19 +7,9 @@ from math import e
 # 适应值函数未编写完成
 # 更新粒子的位置和速度未完成
 def cosine_similarity(x,y):
-    '''
-    vc = 0
-    for i in range(1,len(x)-2):
-        xc1 = x[i] - x[i-1]
-        xc2 = x[i+1] - x[i]
-        yc1 = y[i] - y[i-1]
-        yc2 = y[i+1] - y[i]
-        vc = (xc1*xc2+yc1*yc2)/(math.sqrt(xc1**2+yc1**2)*math.sqrt(xc2**2+yc2**2))
-        #print(float(vc[0]))
-    return vc
-    '''
+
     num = float(np.matmul(x, y))
-    s = np.linalg.norm(x) * np.linalg.norm(y)
+    s = np.linalg.norm(x) * np.linalg.norm(y)   #np.linalg.norm 默认是求整体矩阵元素平方和再开根号
     if s == 0:
        result = 0.0
     else:
@@ -56,12 +46,22 @@ def encode_of_textvector(textvector:list,chrom_a: list,chrom_b:list):
     return dC1,dC2
 
 def fit_fun(particles,x):
+    '''
+    适应值函数
+    param：
+        particles   粒子群
+        x   随机小批量的个数
+    '''
     fit_value_dict = {} 
     m = []   
     size = particles.getSize()
     #m_max,m_min = getRandom(size)
-    for i in range(x):
-        m.append(int(random.uniform(0,size)))   #获得需要更新适应值的个体
+    if x == size:
+        for i in range(x):
+            m.append(int(i))
+    else:
+        for i in range(x):
+            m.append(int(random.uniform(0,size)))   #获得需要更新适应值的个体
     
     for i in m:
         fit_value = 0
@@ -70,11 +70,11 @@ def fit_fun(particles,x):
             dc1,dc2 = encode_of_textvector(feature_tfidf,particles.getPatical_list()[i].getPos(),particles.getPatical_list()[j].getPos())
             value = cosine_similarity(dc1,dc2)
             fit_value = fit_value + value
-        if fit_value > particles.getPatical_list()[i].getFitness_value():
-            particles.getPatical_list()[i].setBest_pos(particles.getPatical_list()[i].getPos())
-        particles.getPatical_list()[i].setFitness_value(fit_value)
-        fit_value_dict[i] = fit_value
-    fit_value_sort = sorted(fit_value_dict.items(), key=lambda x: x[1], reverse=True)
+        if fit_value > particles.getPatical_list()[i].getFitness_value():   #获得更佳适应值
+            particles.getPatical_list()[i].setBest_pos(particles.getPatical_list()[i].getPos()) #更新粒子的局部最优位置
+        particles.getPatical_list()[i].setFitness_value(fit_value)  #为粒子更新当前的适应值
+        fit_value_dict[i] = fit_value   #键：粒子编号   值：fitness_value
+    fit_value_sort = sorted(fit_value_dict.items(), key=lambda x: x[1], reverse=True)   #排序 以便获得适应值最佳的粒子
 
     return fit_value_sort
 
@@ -82,12 +82,13 @@ def fit_fun(particles,x):
 class Particle:
     def __init__(self,max_vel,dim):
         super().__init__()
-        self._pos = [np.random.randint(0,2) for i in range(dim)]
-        self._vel = [random.uniform(-max_vel,max_vel) for i in range(dim)]
-        self._best_pos = [0 for i in range(dim)]
+        self._pos = [np.random.randint(0,2) for i in range(dim)]    #初始化位置 随机0 1
+        self._vel = [random.uniform(-max_vel,max_vel) for i in range(dim)]  #初始化速度
+        self._best_pos = [0 for i in range(dim)]    #初始化最佳位置
         #self._fitness_value = fit_fun(self._pos)
         self._fitness_value = float('-inf')
 
+    #   setters && getters
     def setPos(self,i,value):
         self._pos[i] = value
     
@@ -115,7 +116,18 @@ class Particle:
 class GSBPSO:
     def __init__(self,dim,size,iter_num,max_vel,theta,gama,best_fitness_value=float('-Inf'),c1=2,c2=2,w=1):
         super().__init__()
-        
+        '''
+        params:
+            dim:粒子的维度
+            size:粒子群的大小
+            iter_num：迭代次数
+            max_vel：速度范围
+            theta:阈值
+            gama:阈值
+            c1:学习因子
+            c2:学习因子
+            w:学习惯性
+        '''
         self.c1 = c1
         self.c2 = c2
         self.w = w
@@ -133,6 +145,13 @@ class GSBPSO:
         #初始化种群
         self.patical_list = [Particle(self.max_vel,self.dim) for i in range(self.size)]
 
+        #初始化各个粒子的适应值
+        '''
+        init_fitvalue = fit_fun(self,self.size)
+        self.setBest_fitness_value(init_fitvalue[0][1])
+        self.setBest_position(self.getPatical_list()[init_fitvalue[0][0]])
+        '''
+    #   setters && getters
     def getSize(self):
         return self.size
 
@@ -145,8 +164,8 @@ class GSBPSO:
     def getBest_fitness_value(self):
         return self.best_fitness_value
 
-    def setBest_position(self,i,value):
-        self.best_position[i] = value
+    def setBest_position(self,value):
+        self.best_position = value
     
     def getBest_position(self):
         return self.best_position
@@ -165,20 +184,9 @@ class GSBPSO:
 
     def update_vel(self,part):
         for i in range(self.dim):
-            #print(part)
-            #print(part.getVel())
-            #print(part.getBest_pos())
-            #print(self.getBest_position())
-            #print(part.getPos())
+            #更新粒子速度
             vel_value = self.w*part.getVel()[i]+self.c1*random.random()*(part.getBest_pos()[i]-part.getPos()[i])+self.c2*random.random()*(self.getBest_position()[i]-part.getPos()[i])
-            #vel_value = self.c1 * random.random() * 1  + self.c2 * random.random() * (self.getBest_position()[i])
-            #vel_part1 = self.w * part.getVel()[i]
-            #vel_part2_temp = (part.getBest_pos()[i] - part.getPos()[i])
-            #vel_part2 = self.c1*random.random()*vel_part2_temp
-            #vel_part3_temp = self.getBest_position()[i]-part.getPos()[i]
 
-            #print(vel_part3_temp)
-            #vel_value = 1
             if vel_value > self.max_vel:
                 vel_value = self.max_vel
             elif vel_value < -self.max_vel:
@@ -206,7 +214,7 @@ class GSBPSO:
                     pos_value = 0
                 else:
                     pos_value = part.getPos()[i]
-            else:
+            elif part.getVel()[i] > 0:
                 if random.random() <= self.s_function_part(part,i):
                     pos_value = 1
                 else:
@@ -214,6 +222,7 @@ class GSBPSO:
             part.setPos(i,pos_value)
 
     def update(self):
+        
         for i in range(self.iter_num):
             if i < self.gama * self.iter_num:
                 for part in self.patical_list:
@@ -264,7 +273,7 @@ if __name__ == "__main__":
     gama = 0.9
     theta = 5
     max_vel = 1
-    iter_num = 100
+    iter_num = 500
     gsbpso = GSBPSO(dim,size,iter_num,max_vel,theta,gama,c1=c1,c2=c2,w=w)
 
     fitness_value_list,best_position = gsbpso.update()
