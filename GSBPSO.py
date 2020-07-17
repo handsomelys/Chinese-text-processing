@@ -146,11 +146,11 @@ class GSBPSO:
         self.patical_list = [Particle(self.max_vel,self.dim) for i in range(self.size)]
 
         #初始化各个粒子的适应值
-        '''
+        
         init_fitvalue = fit_fun(self,self.size)
         self.setBest_fitness_value(init_fitvalue[0][1])
-        self.setBest_position(self.getPatical_list()[init_fitvalue[0][0]])
-        '''
+        self.setBest_position(self.getPatical_list()[init_fitvalue[0][0]].getPos())
+        
     #   setters && getters
     def getSize(self):
         return self.size
