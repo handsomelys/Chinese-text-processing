@@ -20,21 +20,6 @@ def normalize_dataSet(dataset):
 
 def cos_similarity(x,y):
     #计算余弦相似度
-    '''
-    print('x: ')
-    print(x.shape)
-    print('y: ')
-    print(y.shape)
-    
-    num = float(np.matmul(x, y))
-    s = np.linalg.norm(x) * np.linalg.norm(y)   #np.linalg.norm 默认是求整体矩阵元素平方和再开根号 即是模
-    if s == 0:
-       result = 0.0
-    else:
-          result = num/s
-        
-    return (result)
-    '''
     return float(np.matmul(x,y))
 
 def cos_dot_procuct(x,y):
@@ -100,25 +85,15 @@ class SKM:
             for feature in self.dataSet_labeled:
                 distances = []
                 for center in self.centers:
-                    #print(type(feature))
-                    #print(type(self.centers[center]))
-                    #print(np.shape(feature))
-                    #print(feature)
-                    #print(feature[:n])
+ 
                     distances.append(cos_dot_procuct(feature[:n],self.centers[center]))  #存放feature与各个质心的cos 此时即计算点乘
-                #print(distances)
-                #print(type(distances))
-                #np.array(distances)
 
-                #print(distances)
                 classification = distances.index(np.nanmin(distances))    #取余弦最小
                 self.clf[classification].append(feature[:n])
                 self.clf_label[classification].append(feature[-1])
 
             prev_centers = dict(self.centers)   #存放原本的质心
-            #print(self.centers)
-            #print('------------------')
-            #print(prev_centers)
+
             for c in self.clf:
                 self.centers[c] = np.average(self.clf[c],axis=0)    #求每个簇内更新之后的质心
                 self.centers[c] = normalize(self.centers[c])
@@ -140,16 +115,31 @@ class SKM:
         return index
 
 class SKM_for_BSKM:
+    '''
+    这个类是为bskm服务的 球面k均值聚类算法
+
+    输入数据：dataset[::,n]为向量 dataset[:,-1]为label 其中 n = int(np.shape(dataSet)[1])
+    输出数据：经由fit函数之后 获得聚类得到的centers、clf_labels、clf 皆是dict类型
+    '''
     def __init__(self,dataSet,k,m,epislon=0.0001):
+        '''
+        构造函数 
+
+        输入参数：
+                dataSet array数据类型 结构如上述
+                k   需要分出的簇数
+                m   最大迭代次数
+                epislon 精度
+        
+        构造函数将输入的向量组标准化 使各个向量模为1
+        '''
         super().__init__()
-        #print(type(dataSet))
         n = int(np.shape(dataSet)[1])
         label_n = int(n-1)
         l = dataSet[:,-1]
         self.tmp_dataSet = normalize_dataSet(dataSet[:,:label_n])  #数据集
         self.dataSet = np.column_stack((self.tmp_dataSet,l))
-        #print(self.dataSet)
-        #self.dataSet = dataSet
+
         self.k = k  #簇的个数
         self.epislon = epislon  #精度
         self.m = m  #迭代次数
@@ -157,6 +147,11 @@ class SKM_for_BSKM:
         #self.dim = np.shape(dataSet)[1] #维度
 
     def setDataSet(self,dataSet):
+        '''
+        用于bskm的时候 传入不同簇的数据集 
+        输入参数：
+                dataSet 如上述结构
+        '''
         dataSet = np.array(dataSet)
         #print(np.shape(dataSet))
         #print(dataSet)
@@ -167,8 +162,13 @@ class SKM_for_BSKM:
         self.dataSet = np.column_stack((self.tmp_dataSet,l))
         #print(self.dataSet)
     def initCenters(self):
-        #print(np.max(np.max(a,axis=0)))
-        #print(np.min(np.min(a,axis=0)))
+        '''
+        初始化簇心
+
+        用np.min np.max求出各个维度的范围 再用随机数从这个范围中获取数 作为初始簇心的坐标
+
+        返回值： center 即初始化后的簇心 类型 dict
+        '''
         center = []
         n = np.shape(self.tmp_dataSet)[1]
         min_value = np.min(np.min(self.tmp_dataSet,axis=0))
@@ -181,14 +181,19 @@ class SKM_for_BSKM:
 
 
     def fit(self):
+        '''
+        用于聚类 该类核心方法
+        对每个向量 veci 与各个簇心 centerj 求余弦相似度 将veci 划分到余弦相似度最小的一个centerj内
+        循环结束后 将各个簇中center的坐标更新 为目前簇内所有点的均值 并标准化
+
+        达到最大迭代次数后 或达到一定精度后 结束fit方法
+        此时成员变量 self.centers self.clf self.clf_label 分别是聚类后的簇心、划分、以及各个划分所属的label
+
+        '''
         self.centers = {}   #存放质心   key:index value:point of centroid
         
         for i in range(self.k):#从data中选质心 初始化
-            #print(self.dataSet)
             self.centers[i] = self.initCenters()
-
-        #print(self.centers)
-        
         for i in range(self.m):
             n = np.shape(self.dataSet)[1] - 1
             self.clf = {}   #每个样本归属的簇 即分组情况
@@ -205,7 +210,6 @@ class SKM_for_BSKM:
                 self.clf_label[classification].append(feature[-1])
 
             prev_centers = dict(self.centers)   #存放原本的质心
-
             for c in self.clf:
                 self.centers[c] = np.average(np.array(self.clf[c])[:,:n],axis=0)    #求每个簇内更新之后的质心
                 self.centers[c] = normalize(self.centers[c])
@@ -217,11 +221,28 @@ class SKM_for_BSKM:
                 if np.sum((current_centers - origin_centers)/(origin_centers+1) *100.0) > self.epislon:
                     optimized = False
             if optimized:
-
                 break
             
 class BSKM:
+    '''
+
+    BSKM类 二分球面k均值聚类算法
+    输入数据：dataset[::,n]为向量 dataset[:,-1]为label 其中 n = int(np.shape(dataSet)[1])
+    输出数据：经由fit函数之后 获得聚类得到的centers、clf_labels、clf 皆是dict类型
+
+
+    '''
     def __init__(self,dataSet,k,m,epislon=0.0001):
+        '''
+        
+        用于聚类 该类核心方法
+        对每个向量 veci 与各个簇心 centerj 求余弦相似度 将veci 划分到余弦相似度最小的一个centerj内
+        循环结束后 将各个簇中center的坐标更新 为目前簇内所有点的均值 并标准化
+
+        达到最大迭代次数后 或达到一定精度后 结束fit方法
+        此时成员变量 self.centers self.clf self.clf_label 分别是聚类后的簇心、划分、以及各个划分所属的label
+
+        '''
         super().__init__()
         n = int(np.shape(dataSet)[1])
         label_n = int(n-1)
@@ -237,6 +258,24 @@ class BSKM:
 
         self.skm = SKM_for_BSKM(self.dataSet,2,self.m)  #SKM实例
     def fit(self):
+
+        '''
+
+        初始化簇表，使之包含由所有的点组成的簇。
+        repeat
+        从簇表中取出一个簇。    (取SEE最大的簇)
+        {对选定的簇进行多次二分试验}
+        for i=1 to 试验次数 do
+            使用基本k均值，二分选定的簇。
+        endfor
+        从二分试验中选择具有最小误差的两个簇。
+        将这两个簇添加到簇表中。
+        until 簇表中包含k个簇
+
+        达到最大迭代次数后 或达到一定精度后 结束fit方法
+        此时成员变量 self.centers self.clf self.clf_label 分别是聚类后的簇心、划分、以及各个划分所属的label
+        '''
+
         n = np.shape(self.dataSet)[1] - 1
         self.centers_ = {}
         self.centers_[0] = np.average(self.dataSet[:,:n],axis=0)
