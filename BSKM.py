@@ -1,405 +1,384 @@
-
+# coding:UTF-8
 import numpy as np
-import random
-from matplotlib import pyplot
-from scipy.spatial.distance import cosine
-
-np.set_printoptions(suppress=True)
-def normalize(x):
-    #标准化向量
-    #print(np.linalg.norm(a[0]))
-    norm = np.linalg.norm(x)
-    y = x/norm
-    return y
-
-def normalize_dataSet(dataset):
-    for i in range(len(dataset)):
-        dataset[i] = normalize(dataset[i])
-    return dataset
-        
-
-def cos_similarity(x,y):
-    #计算余弦相似度
-    return float(np.matmul(x,y))
-
-def cos_dot_procuct(x,y):
-    #print(np.matmul(x,y))
-    #return (np.matmul(x,y))
-    #print('x:',x)
-    #print('y:',y)
-    return cosine(x,y)
-def labeling(x):
-
-    for i in range(len(x)):
-        x[i].append(int(i))
-    return x
-
-def cos_distance(x,y):
-    return 1-cos_dot_procuct(x,y)
-
-class SKM:
-    def __init__(self,dataSet,k,m,epislon=0.0001):
-        super().__init__()
-        self.dataSet = normalize_dataSet(dataSet)  #数据集
-        self.dataSet_labeled = labeling(self.dataSet.tolist())
-        #self.dataSet = dataSet
-        self.k = k  #簇的个数
-        self.epislon = epislon  #精度
-        self.m = m  #迭代次数
-        self.size = np.shape(dataSet)[0]    #粒子个数
-        #self.dim = np.shape(dataSet)[1] #维度
-
-    def setDataSet(self,dataSet):
-        self.dataSet = dataSet
-
-    def initCenters(self):
-        #print(np.max(np.max(a,axis=0)))
-        #print(np.min(np.min(a,axis=0)))
-        center = []
-        n = np.shape(self.dataSet)[1]
-        min_value = np.min(np.min(self.dataSet,axis=0))
-        max_value = np.max(np.max(self.dataSet,axis=0))
-        range_value = float(max_value-min_value)
-        for i in range(n):
-            center.append(float(random.uniform(min_value,max_value)))
-        center = np.array(center)
-        return center
+from matplotlib import pyplot as plt
+from pprint import pprint
 
 
-    def fit(self):
-        self.centers = {}   #存放质心   key:index value:point of centroid
-        
-        for i in range(self.k):#从data中选质心 初始化
-            #print(self.dataSet)
-            self.centers[i] = self.initCenters()
-
-
-        
-        for i in range(self.m):
-            n = np.shape(self.dataSet_labeled)[1] - 1
-            self.clf = {}   #每个样本归属的簇 即分组情况
-            self.clf_label = {}
-            for i in range(self.k):
-                self.clf[i] = []
-                self.clf_label[i] = []
-            for feature in self.dataSet_labeled:
-                distances = []
-                for center in self.centers:
- 
-                    distances.append(cos_dot_procuct(feature[:n],self.centers[center]))  #存放feature与各个质心的cos 此时即计算点乘
-
-                classification = distances.index(np.nanmin(distances))    #取余弦最小
-                self.clf[classification].append(feature[:n])
-                self.clf_label[classification].append(feature[-1])
-
-            prev_centers = dict(self.centers)   #存放原本的质心
-
-            for c in self.clf:
-                self.centers[c] = np.average(self.clf[c],axis=0)    #求每个簇内更新之后的质心
-                self.centers[c] = normalize(self.centers[c])
-                #print(np.linalg.norm(self.centers[c]))
-            optimized = True    #判断是否达到精度
-            for center in self.centers:
-                origin_centers = prev_centers[center]   #上一次的质心
-                current_centers = self.centers[center]  #当前质心
-                if np.sum((current_centers - origin_centers)/(origin_centers+1) *100.0) > self.epislon:
-                    optimized = False
-            if optimized:
-                print('次数： ',i)
-                break
-
-    def clusting(self,_data):
-        #预测输入的样本属于哪个类
-        cos_ = [cos_similarity(_data,self.centers[center]) for center in self.centers]
-        index = distances.index[np.nanmax(cos_)]
-        return index
-
-class SKM_for_BSKM:
+def load_data(file_path):
+    '''导入数据
+    input:  file_path(string):文件的存储位置
+    output: data(mat):数据
     '''
-    这个类是为bskm服务的 球面k均值聚类算法
+    f = open(file_path)
+    data = []
+    for line in f.readlines():
+        row = []  # 记录每一行
+        lines = line.strip().split("\t")
+        for x in lines:
+            row.append(float(x))  # 将文本中的特征转换成浮点数
+        data.append(row)
+    f.close()
+    return np.mat(data)
 
-    输入数据：dataset[::,n]为向量 dataset[:,-1]为label 其中 n = int(np.shape(dataSet)[1])
-    输出数据：经由fit函数之后 获得聚类得到的centers、clf_labels、clf 皆是dict类型
+def randCent(data, k):
+    '''随机初始化聚类中心
+    input:  data(mat):训练数据
+            k(int):类别个数
+    output: centroids(mat):聚类中心
     '''
-    def __init__(self,dataSet,k,m,epislon=0.0001):
-        '''
-        构造函数 
+    n = np.shape(data)[1]  # 属性的个数
+    centroids = np.mat(np.zeros((k, n)))  # 初始化k个聚类中心
+    for j in range(n):  # 初始化聚类中心每一维的坐标
+        minJ = np.min(data[:, j])
+        rangeJ = np.max(data[:, j]) - minJ
+        # 在最大值和最小值之间随机初始化
+        centroids[:, j] = minJ * np.mat(np.ones((k, 1))) + np.random.rand(k, 1) * rangeJ
+    return centroids
 
-        输入参数：
-                dataSet array数据类型 结构如上述
-                k   需要分出的簇数
-                m   最大迭代次数
-                epislon 精度
-        
-        构造函数将输入的向量组标准化 使各个向量模为1
-        '''
-        super().__init__()
-        n = int(np.shape(dataSet)[1])
-        label_n = int(n-1)
-        l = dataSet[:,-1]
-        self.tmp_dataSet = normalize_dataSet(dataSet[:,:label_n])  #数据集
-        self.dataSet = np.column_stack((self.tmp_dataSet,l))
-
-        self.k = k  #簇的个数
-        self.epislon = epislon  #精度
-        self.m = m  #迭代次数
-        self.size = np.shape(dataSet)[0]    #粒子个数
-        #self.dim = np.shape(dataSet)[1] #维度
-
-    def setDataSet(self,dataSet):
-        '''
-        用于bskm的时候 传入不同簇的数据集 
-        输入参数：
-                dataSet 如上述结构
-        '''
-        dataSet = np.array(dataSet)
-        #print(np.shape(dataSet))
-        #print(dataSet)
-        n = int(np.shape(dataSet)[1])
-        label_n = int(n-1)
-        l = dataSet[:,-1]
-        self.tmp_dataSet = normalize_dataSet(dataSet[:,:label_n])  #数据集
-        self.dataSet = np.column_stack((self.tmp_dataSet,l))
-        #print(self.dataSet)
-    def initCenters(self):
-        '''
-        初始化簇心
-
-        用np.min np.max求出各个维度的范围 再用随机数从这个范围中获取数 作为初始簇心的坐标
-
-        返回值： center 即初始化后的簇心 类型 dict
-        '''
-        center = []
-        n = np.shape(self.tmp_dataSet)[1]
-        min_value = np.min(np.min(self.tmp_dataSet,axis=0))
-        max_value = np.max(np.max(self.tmp_dataSet,axis=0))
-        range_value = float(max_value-min_value)
-        for i in range(n):
-            center.append(float(random.uniform(min_value,max_value)))
-        center = np.array(center)
-        return center
-
-
-    def fit(self):
-        '''
-        用于聚类 该类核心方法
-        对每个向量 veci 与各个簇心 centerj 求余弦相似度 将veci 划分到余弦相似度最小的一个centerj内
-        循环结束后 将各个簇中center的坐标更新 为目前簇内所有点的均值 并标准化
-
-        达到最大迭代次数后 或达到一定精度后 结束fit方法
-        此时成员变量 self.centers self.clf self.clf_label 分别是聚类后的簇心、划分、以及各个划分所属的label
-
-        '''
-        self.centers = {}   #存放质心   key:index value:point of centroid
-        
-        for i in range(self.k):#从data中选质心 初始化
-            self.centers[i] = self.initCenters()
-        for i in range(self.m):
-            n = np.shape(self.dataSet)[1] - 1
-            self.clf = {}   #每个样本归属的簇 即分组情况
-            self.clf_label = {}
-            for i in range(self.k):
-                self.clf[i] = []
-                self.clf_label[i] = []
-            for feature in self.dataSet:
-                distances = []
-                for center in self.centers:
-                    distances.append(cos_dot_procuct(feature[:n],self.centers[center]))  #存放feature与各个质心的cos 此时即计算点乘
-                classification = distances.index(np.nanmin(distances))    #取余弦最小
-                self.clf[classification].append(feature)
-                self.clf_label[classification].append(feature[-1])
-
-            prev_centers = dict(self.centers)   #存放原本的质心
-            for c in self.clf:
-                self.centers[c] = np.average(np.array(self.clf[c])[:,:n],axis=0)    #求每个簇内更新之后的质心
-                self.centers[c] = normalize(self.centers[c])
-                #print(np.linalg.norm(self.centers[c]))
-            optimized = True    #判断是否达到精度
-            for center in self.centers:
-                origin_centers = prev_centers[center]   #上一次的质心
-                current_centers = self.centers[center]  #当前质心
-                if np.sum((current_centers - origin_centers)/(origin_centers+1) *100.0) > self.epislon:
-                    optimized = False
-            if optimized:
-                break
-            
-class BSKM:
+def Skmeans(data, k, omiga, max_iter):
+    '''根据SKMeans算法求解聚类中心
+        input:  data(mat):训练数据
+                k(int):类别个数
+                omiga(float):精度要求
+                max_iter(int):最大迭代次数
+        output: centroids(mat):训练完成的聚类中心
+                subCenter(mat):每一个样本所属的类别
     '''
+    #subCenter 第0维放的是簇的属类 (0 or 1)
+    m, n = np.shape(data)  # m：样本的个数，n：特征的维度
+    subCenter = np.mat(np.zeros((m, n + 1)))  # 初始化每一个样本所属的类别
+    centroids = normalize(randCent(data[:, :-1], k))  # 随机初始化聚类中心
+    data[:, :-1] = normalize(data[:, :-1])  # 标准化数据
+    for iter in range(max_iter):
+        # centroids = normalize(randCent(data, k))  # 随机初始化聚类中心
+        for i in range(m):  # 更新隶属度
+            max_index = 0
+            max_value = -np.inf
+            for j in range(k):  # 遍历全部聚类中心，求出最大值即属于哪个聚类中心
+                if (data[i, :-1] * centroids[j].T)[0, 0] > max_value:
+                    max_value = (data[i, :-1] * centroids[j].T)[0, 0]  # 求样本和聚类中心的内积，得到最大值
+                    max_index = j  # 得到最大值的下标即聚类中心的编号
+            lst = [max_index]  # 将样本聚类标签和样本一同写入subCenter矩阵中
+            lst.extend(data[i].tolist()[0])
+            subCenter[i,] = np.mat(lst)
+        # 更新簇中心向量
+        update_center_vector = [[] for _ in range(k)]  # 用于存储每个簇的向量计算结果
+        update_center_count = [0 for _ in range(k)]  # 用于存储每个簇的样本个数
+        for i in range(m):
+            center_index = int(subCenter[i, 0])  # 获取簇中心的编号
+            update_center_count[center_index] += 1  # 对应簇的样本个数+1
+            try:  # 将对应簇的样本数据累加
+                update_center_vector[center_index] = update_center_vector[center_index] + subCenter[i, 1:-1]
+            except:
+                update_center_vector[center_index] = subCenter[i, 1:-1]
+        centroids_next = np.mat(np.zeros((k, n - 1)))  # 方法参照randCent函数
+        try:
+            for i in range(k):  # 更新每一簇的聚类中心坐标
+                m_vector = np.mat(update_center_vector[i]) / float(update_center_count[i])
+                centroids_next[i, :] = normalize(m_vector)
+        except:
+            continue
+        # print('centroids_next',centroids_next)
+        # print("centroids",centroids)
+        # print("="*30)
+        # 矩阵运算求出 max|c(j,t+1)-c(j,t)|是否 <omiga
+        result = centroids_next - centroids
+        # print("result",result)
+        # for i in range(k):
+        #     print(np.linalg.norm(result[i]))
+        max_list = [float(np.linalg.norm(result[i])) for i in range(k)]  # 求出c(j,t+1)-c(j,t)的值
+        max_center_value = max(max_list)  # 取其中最大值
+        # print('max_center_value',max_center_value)
+        if max_center_value < omiga:  # 判断max<omiga,是则退出循环
+            # print("Success at No.%d times" % iter)
+            break
+        centroids = centroids_next
+    return centroids, subCenter
 
-    BSKM类 二分球面k均值聚类算法
-    输入数据：dataset[::,n]为向量 dataset[:,-1]为label 其中 n = int(np.shape(dataSet)[1])
-    输出数据：经由fit函数之后 获得聚类得到的centers、clf_labels、clf 皆是dict类型
 
-
-    '''
-    def __init__(self,dataSet,k,m,epislon=0.0001):
-        '''
-        
-        用于聚类 该类核心方法
-        对每个向量 veci 与各个簇心 centerj 求余弦相似度 将veci 划分到余弦相似度最小的一个centerj内
-        循环结束后 将各个簇中center的坐标更新 为目前簇内所有点的均值 并标准化
-
-        达到最大迭代次数后 或达到一定精度后 结束fit方法
-        此时成员变量 self.centers self.clf self.clf_label 分别是聚类后的簇心、划分、以及各个划分所属的label
-
-        '''
-        super().__init__()
-        n = int(np.shape(dataSet)[1])
-        label_n = int(n-1)
-        l = dataSet[:,-1]
-        self.tmp_dataSet = normalize_dataSet(dataSet[:,:label_n])  #数据集
-        self.dataSet = np.column_stack((self.tmp_dataSet,l))
-        self.k = k  #簇的个数
-        self.epislon = epislon  #精度
-        self.m = m  #迭代次数
-        self.size = np.shape(dataSet)[0]    #粒子个数
-        self.dim = np.shape(dataSet)[1] #维度
-        #print(self.dataSet)
-
-        self.skm = SKM_for_BSKM(self.dataSet,2,self.m)  #SKM实例
-    def fit(self):
-
-        '''
-
-        初始化簇表，使之包含由所有的点组成的簇。
-        repeat
-        从簇表中取出一个簇。    (取SEE最大的簇)
-        {对选定的簇进行多次二分试验}
-        for i=1 to 试验次数 do
-            使用基本k均值，二分选定的簇。
-        endfor
-        从二分试验中选择具有最小误差的两个簇。
-        将这两个簇添加到簇表中。
-        until 簇表中包含k个簇
-
-        达到最大迭代次数后 或达到一定精度后 结束fit方法
-        此时成员变量 self.centers self.clf self.clf_label 分别是聚类后的簇心、划分、以及各个划分所属的label
-        '''
-
-        n = np.shape(self.dataSet)[1] - 1
-        self.centers_ = {}
-        self.centers_[0] = np.average(self.dataSet[:,:n],axis=0)
-        self.centers_[0] = normalize(self.centers_[0])  #初始化簇心 为所有样本点的中心点
-        #print('self.centers[0]:',self.centers_[0])
-        self.clf_ = {}
-        self.clf_[0] = []
-        self.clf_label_ = {}
-        self.clf_label_[0] = []
-        index = 0
-        self.centers = {}
-        self.clf = {}
-        self.clf_label = {}
-        for feature in self.dataSet:
-            self.clf_[0].append(feature)
-            self.clf_label_[0].append(feature[-1])
-
-        self.skm.fit()
-        self.centers = self.skm.centers
-        self.clf = self.skm.clf
-        self.clf_label = self.skm.clf_label
-        #print(self.centers)
-        self.index = 1
-        while(len(self.centers) < self.k):
-            cos_distances_ = []
-            for i in range(len(self.centers)):
-                sse = -np.inf
-                max_index = -1
-                
-                for j in range(len(self.clf)):
-                    cos = 0
-                    for k in range(len(self.clf[j])):
-                        cos += cos_distance(np.array(self.clf[j])[k][:n],self.centers[i])
-                if cos > sse:
-                    sse = cos
-                    max_index = j   #第j个簇的sse最小 赋值到min_index
-            self.skm.setDataSet(self.clf[max_index])
-            self.skm.fit()
-            self.centers[self.index] = self.skm.centers[0]
-            self.clf[self.index] = self.skm.clf[0]
-            self.clf_label[self.index] = self.skm.clf_label[0]
-            self.index = self.index + 1
-            self.centers[self.index] = self.skm.centers[1]
-            self.clf[self.index] = self.skm.clf[1]
-            self.clf_label[self.index] = self.skm.clf_label[1]
-
-def run_skm():
-    x = np.random.rand(100,2)
-    skm = SKM(x,2,300,0.0001)
-    skm.fit()
-    print(skm.clf_label)
-    #print(skm.clf)
-    flag = 1
-    for center in skm.centers:
-        if flag == 1:
-            pyplot.scatter(skm.centers[center][0],skm.centers[center][1],marker='*',s=200,c='r')
-            flag = 0
-        elif flag == 0:
-            pyplot.scatter(skm.centers[center][0],skm.centers[center][1],marker='*',s=200,c='b')
-    
-    for catter in skm.clf:
-        for point in skm.clf[catter]:
-            if catter == 0:
-                pyplot.scatter(point[0],point[1],c='r')
+def bin_skmeans(data_set, k, omiga, max_iter):
+    # labels = data_set[:, -1] # 每个文本矩阵的标签
+    # data_set = data_set[:,:-1] # 文本矩阵
+    # m, n = np.shape(data_set)  # 得到样本数据的个数和维数
+    centroid_0 = normalize(np.mean(data_set[:, :-1], axis=0)[0])
+    center_list = [centroid_0]
+    data_set[:, :-1] = normalize(data_set[:, :-1])
+    cluster_category = [[]]  # 用于存储不同的簇
+    cluster_category[0] = data_set
+    while len(cluster_category) < k:
+        max_sce = 0  # 存储SCE最大簇的值
+        max_sce_id = 0  # 最大簇下标
+        for center_id, cluster in enumerate(cluster_category):  # 求出sce最大的簇
+            temp_sce = 0
+            for x in cluster[:, :-1]:  # 计算当前簇的SCE
+                temp_sce += (1 - x * center_list[center_id].T)
+            if temp_sce > max_sce:  # 是否是SCE最大簇
+                max_sce = temp_sce
+                max_sce_id = center_id
+        # 得到最大簇后进行球面聚类，得到聚类中心centroid_temp 和 包含标签和样本数据的subcenter_temp
+        test_num = 10
+        centroid_temp, subceter_temp = [[] for _ in range(test_num)], [[] for _ in range(test_num)]
+        for t in range(test_num):  # 设置SKM测试次数为10
+            centroid_temp[t], subceter_temp[t] = Skmeans(data=cluster_category[max_sce_id], k=2, omiga=omiga,
+                                                         max_iter=max_iter)
+        cluster_category.pop(max_sce_id)  # 删除原有的簇
+        center_list.pop(max_sce_id)  # 删除原有的簇的中心
+        # 选取其中SCE最小的一组作为分裂结果
+        min_sce = np.inf  # 存储SCE最大簇的值
+        min_sce_id = 0  # 最大簇下标
+        for cid, subctr in enumerate(subceter_temp):  # 求出sce最大的簇
+            temp_sce = 0
+            # for x in subctr[cid, 1:-1][0]:  # 计算当前簇的SCE
+            #     temp_sce += (1 - x * centroid_temp[cid][0].T)
+            # for x in subctr[cid, 1:-1][0]:
+            #     temp_sce += (1 - x * centroid_temp[cid][1].T)
+            for x in range(len(subctr)):  # 计算当前簇的SCE
+                temp_sce += (1 - subctr[x, 1:-1][0] * centroid_temp[cid][0].T)
+            for x in range(len(subctr)):
+                temp_sce += (1 - subctr[x, 1:-1][0] * centroid_temp[cid][1].T)
+            if temp_sce < min_sce:  # 是否是SCE最小簇
+                min_sce = temp_sce
+                min_sce_id = cid
+        # print(min_sce, min_sce_id)
+        # print("=="*30) # 对得到的subceter_temp进行分割
+        subceter_tmp = subceter_temp[min_sce_id]
+        cluster_temp = [[], []]  # 将聚类后的簇分割成两个簇
+        for id in range(len(subceter_tmp)):
+            if subceter_tmp[id, 0] == 0:
+                cluster_temp[0].append(subceter_tmp[id, 1:].tolist()[0])
             else:
-                pyplot.scatter(point[0],point[1],c='b')
-    pyplot.show()
+                cluster_temp[1].append(subceter_tmp[id, 1:].tolist()[0])
+        # print("="*30)
+        # print(cluster_temp[0])
+        # print(len(cluster_temp[0]))
+        # print(cluster_temp[1])
+        # print(len(cluster_temp[1]))
+        cluster_temp[0] = np.mat(cluster_temp[0])  # 第0号簇
+        cluster_temp[1] = np.mat(cluster_temp[1])  # 第1号簇
+        # print(len(cluster_temp[0]),len(cluster_temp[1]))
+        cluster_category.append(cluster_temp[0])  # 将分裂结果的两个簇加入簇表
+        cluster_category.append(cluster_temp[1])
+        center_list.append(centroid_temp[min_sce_id][0])  # 将分裂结果的两个簇的中心加入簇中心表
+        center_list.append(centroid_temp[min_sce_id][1])
+        print("已分出%d个簇" % len(cluster_category))
+    # print(center_list)
+    # for item in cluster_category:
+    #     print(item)
+    return center_list, cluster_category
 
-def run_bskm():
-    x = np.random.rand(100,2)
-    x = labeling(x.tolist())
-    x = np.array(x)
-    bskm = BSKM(x,2,300,0.0001)
-    bskm.fit()
-    print(bskm.clf_label)
-    #print(skm.clf)
-    #print(skm.centers)
-    #print(skm.clf)
-    flag = 1
-    
-    for center in bskm.centers:
-        if flag == 1:
-            pyplot.scatter(bskm.centers[center][0],bskm.centers[center][1],marker='*',s=200,c='r')
-            flag = 0
-        elif flag == 0:
-            pyplot.scatter(bskm.centers[center][0],bskm.centers[center][1],marker='*',s=200,c='b')
-    
-    for catter in bskm.clf:
-        for point in bskm.clf[catter]:
-            if catter == 0:
-                pyplot.scatter(point[0],point[1],c='r')
-            else:
-                pyplot.scatter(point[0],point[1],c='b')
-    pyplot.show()
-    
 
-def run_skm_modified():
-    x = np.random.rand(100,2)
-    x = labeling(x.tolist())
-    x = np.array(x)
-    skm = SKM_for_BSKM(x,2,300,0.0001)
-    skm.fit()
-    print(skm.clf_label)
-    #print(skm.clf)
-    #print(skm.centers)
-    #print(skm.clf)
-    flag = 1
-    for center in skm.centers:
-        if flag == 1:
-            pyplot.scatter(skm.centers[center][0],skm.centers[center][1],marker='*',s=200,c='r')
-            flag = 0
-        elif flag == 0:
-            pyplot.scatter(skm.centers[center][0],skm.centers[center][1],marker='*',s=200,c='b')
-    
-    for catter in skm.clf:
-        for point in skm.clf[catter]:
-            if catter == 0:
-                pyplot.scatter(point[0],point[1],c='r')
-            else:
-                pyplot.scatter(point[0],point[1],c='b')
-    pyplot.show()
+def bin_show(center_list, cluster_category):
+    color_box = ['#0000FE', '#000000', '#FE0000', '#99CC00', '#FF00FF']
+    print("=================cluster_category===================")
+    for id, line in enumerate(cluster_category):
+        X, Y = [item[0, 0] for item in line], [item[0, 1] for item in line]
+        print("=============No.%d============" % id)
+        # for item in line:
+        #     X.append(item[0,0])
+        #     Y.append(item[0,1])
+        # print(item)
+        plt.scatter(X, Y, 50, color=color_box[id], marker='.', linewidth=2, alpha=0.8)
+    center_X, center_Y = [item[0, 0] for item in center_list], [item[0, 1] for item in center_list]
+    print("=================center_list===================")
+    # for item in center_list:
+    # print(item)
+    #     # print(item[0,0],item[0,1])
+    #     center_X.append(item[0,0])
+    #     center_Y.append(item[0,1])
+    plt.scatter(center_X, center_Y, 150, color='#00FF00', marker='+', linewidth=2, alpha=0.8)
+    plt.grid(color='#95a5a6')
+    plt.show()
 
-if __name__ == '__main__':
-    #run_skm()
-    run_bskm()
-    #run_skm()
-    #run_skm_modified()
+
+def normalize(input_data):
+    for i in range(len(input_data)):
+        mod = np.linalg.norm(input_data[i])
+        input_data[i] = input_data[i] / mod
+    # print(input_data)
+    return input_data
+
+
+def save_result(file_name, source):
+    '''保存source中的结果到file_name文件中
+    input:  file_name(string):文件名
+            source(mat):需要保存的数据
+    output:
+    '''
+    m, n = np.shape(source)
+    f = open(file_name, "a+")
+    for i in range(m):
+        tmp = []
+        for j in range(n):
+            tmp.append(str(source[i, j]))
+        f.write("\t".join(tmp) + "\n")
+    f.close()
+
+
+def show(num, center, subcenter, row_data):
+    data = row_data.tolist()
+    show_data = [[] for i in range(num)]
+    num_count = 0
+    while num_count < num:
+        for index, item in enumerate(subcenter.tolist()):
+            if item[0] == num_count:
+                show_data[num_count].append(data[index])
+        num_count += 1
+    color_box = ['#0000FE', '#000000', '#FE0000', '#99CC01']
+    for id, line in enumerate(show_data):
+        X, Y = [], []
+        for item in line:
+            X.append(item[0])
+            Y.append(item[1])
+        plt.scatter(X, Y, 50, color=color_box[id], marker='.', linewidth=2, alpha=0.8)
+    center_X, center_Y = [], []
+    for item in center.tolist():
+        center_X.append(item[0])
+        center_Y.append(item[1])
+        plt.scatter(center_X, center_Y, 150, color='#00FF00', marker='+', linewidth=2, alpha=0.8)
+    plt.grid(color='#95a5a6')
+    plt.show()
+
+
+def test_useable(cluster_category):
+    max_label = []
+    max_value = []
+    for every_cluster in cluster_category:
+        a, b, c, d, e = 0, 0, 0, 0, 0
+        for key in range(len(every_cluster[:, -1])):
+            value = int(every_cluster[key, -1])
+            if 0 <= value < 200:
+                a += 1
+            elif 200 <= value < 400:
+                b += 1
+            elif 400 <= value < 600:
+                c += 1
+            elif 600 <= value < 800:
+                d += 1
+            elif 800 <= value < 1000:
+                e += 1
+        temp = [a, b, c, d, e]
+        max_value.append(max(temp))
+        max_index = temp.index(max(temp))
+        max_label.append(max_index)
+    if len(set(max_label))==5:
+        if min(max_value)<100:
+            return False
+        else:
+            return True
+    else:
+        return False
+
+
+def main_socket():
+    # data = np.mat(np.load('test_matrix.npy'))
+    # file_path = "data.txt"
+    # # 1、导入数据
+    # print("---------- 1.load data ------------")
+    # data= np.mat(np.random.rand(100,2))
+    # # 2、随机初始化k个聚类中心
+    # print("---------- 2.random center ------------")
+    # centroids = randCent(data, k)
+    # # 3、聚类计算
+    # print("---------- 3.kmeans ------------")
+    # subCenter = kmeans(data, k, centroids)
+    # # print(subCenter)
+    # # 4、保存聚类中心
+    # print("---------- 4.save centroids ------------")
+    # save_result("center.txt", centroids)
+    # # 5、展示分类结果
+    # print("---------- 5.show result ------------")
+    # show(k, centroids, subCenter, data)
+    # ---------------------------------------------------------
+    # centroids, subCenter = Skmeans(data, k, omiga=0.1, max_iter=1000)
+    # show(k, centroids, subCenter, data)
+    k = 5  # 聚类中心的个数
+    # file_path = "data2.txt"
+    # data = load_data(file_path)
+    data = np.mat(np.load("matrix_keywords_tfidf_1000m_5.npy"))
+    # data = np.append(data,data,axis=0)
+    np.random.shuffle(data)
+    # save_result("matrix_keywords_tfidf_plus.txt",data)
+    failed = 1
+    while True:
+        center_list, cluster_category = bin_skmeans(data_set=data, k=k, omiga=0.0000001, max_iter=1000)
+        if test_useable(cluster_category):
+            print("在第%d次聚类成功" % failed)
+            break
+        else:
+            print("第%d次聚类失败" % failed)
+        failed += 1
+
+    print("center_list", "==" * 30)
+    for i in center_list:
+        save_result("center_list1000m5_3.txt", i)
+        for j in i:
+            print(j, end=" ")
+        # f.write("\r")
+        print("\r")
+    print("cluster", "==" * 30)
+    clst = []
+    labels = []
+    for cl in cluster_category:
+        clster = 0
+        a, b, c, d, e = 0, 0, 0, 0, 0
+        save_result("cluster_category1000m5_3.txt", cl)
+        with open("cluster_category1000m5_3.txt", "a+")as f:
+            f.write("\n")
+        for key in range(len(cl[:, -1])):
+            value = int(cl[key, -1])
+            if 0 <= value < 200:
+                print("Art", value)
+                a += 1
+            elif 200 <= value < 400:
+                print("Enviornment", value)
+                b += 1
+            elif 400 <= value < 600:
+                print("Agriculture", value)
+                c += 1
+            elif 600 <= value < 800:
+                print("Economy", value)
+                d += 1
+            elif 800 <= value < 1000:
+                print("Politics", value)
+                e += 1
+            clster += 1
+        clst.append(clster)
+        labels.append([a, b, c, d, e])
+        print("==" * 30)
+    print(clst)
+    print("=" * 30)
+    for label in labels:
+        print(label)
+    # # bin_show(center_list, cluster_category)
+    # 经检验四维数据集聚类没有报错
+    # print('center_list'+"=" * 40)
+    # print(center_list)
+    # print('cluster_category'+"="*40)
+    # print(cluster_category)
+    # 将data.txt中数据的维度翻倍
+    # with open("data.txt","r")as fr:
+    #     with open("data2.txt","w")as fw:
+    #         for line in fr.readlines():
+    #             lines = line.strip().split("\t")
+    #             fw.write("\t".join(lines+lines))
+    #             fw.write("\r")
+
+
+if __name__ == "__main__":
+    main_socket()
+    '''
+    0 - 39:
+    艺术
+    40 - 79:
+    环境
+    80 - 119:
+    农业
+    120 - 159:
+    经济
+    160 - 199:
+    政治
+    
+    聚类各簇的个数：
+            38 , 43 , 43 , 24 , 52
+    最多    艺术  艺术 政治  环境 环境
+    '''
